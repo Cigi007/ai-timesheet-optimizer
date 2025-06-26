@@ -171,7 +171,7 @@ def main():
                             st.session_state.data = df
                             st.success("Soubor byl úspěšně nahrán a zvalidován.")
                             st.session_state.active_tab = 1
-                            st.experimental_rerun()
+                            st.rerun()
                             return True
                 except Exception as e:
                     error_message = f"Chyba při načítání souboru: {str(e)}"
@@ -201,7 +201,7 @@ def main():
                 )
             if st.button("Potvrdit mapování"):
                 st.session_state.active_tab = 2
-                st.experimental_rerun()
+                st.rerun()
                 return False
             st.info("Po namapování potvrďte tlačítkem.")
 
