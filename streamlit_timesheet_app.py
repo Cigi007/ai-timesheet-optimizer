@@ -140,5 +140,3 @@ with tab1:
         type=['csv', 'xlsx', 'xls'],
         help="""Podporované formáty:\n- CSV (.csv)\n- Excel (.xlsx, .xls)\n"""
     )
-
-<rewritten_file>
