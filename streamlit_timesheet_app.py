@@ -171,17 +171,35 @@ with tab1:
                     else:
                         st.session_state.data = df
                         st.success("Soubor byl úspěšně nahrán a zvalidován.")
-                        switch_tab(1)  # Přepni na Mapování
+                        st.session_state.active_tab = 1
+                        st.experimental_rerun()  # Okamžitý rerun pro přepnutí záložky
             except Exception as e:
                 error_message = f"Chyba při načítání souboru: {str(e)}"
         if error_message:
             st.error(error_message)
 
-# Automatické přepnutí na Mapování pokud je aktivní tab 1 a data jsou načtena
+# Mapování sloupců
 if st.session_state.active_tab == 1 and st.session_state.data is not None:
     with tab2:
         st.header("Mapování sloupců")
-        st.write("Zde bude pokračovat logika mapování sloupců.")
+        df = st.session_state.data
+        st.write("Namapujte sloupce z nahraného souboru na požadované položky:")
+        mapping_options = [
+            "Nepoužít",
+            "Projekt",
+            "Úkol",
+            "Popisek",
+            "Od kdy",
+            "Do kdy"
+        ]
+        columns = list(df.columns)
+        if 'columns_mapping' not in st.session_state or not st.session_state.columns_mapping:
+            st.session_state.columns_mapping = {col: "Nepoužít" for col in columns}
+        for col in columns:
+            st.session_state.columns_mapping[col] = st.selectbox(
+                f"{col}", mapping_options, index=mapping_options.index(st.session_state.columns_mapping.get(col, "Nepoužít")), key=f"mapping_{col}"
+            )
+        st.info("Po namapování pokračujte na další krok.")
 
 # Výsledky
 if st.session_state.active_tab == 3:
