@@ -56,7 +56,7 @@ def main():
     saved_hours = st.sidebar.number_input("Ušetřené hodiny", min_value=0.0, value=0.0, step=0.5, format="%.2f")
     if hourly_rate > 0 and saved_hours > 0:
         saved_money = hourly_rate * saved_hours
-        st.sidebar.success(f"Ušetřeno: {saved_money:,.0f} Kč")
+        st.sidebar.success(f"Aplikace ti ušetřila: {saved_money:,.0f} Kč")
     else:
         st.sidebar.info("Zadejte sazbu a počet hodin.")
 
