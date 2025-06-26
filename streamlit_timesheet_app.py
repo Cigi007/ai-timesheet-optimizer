@@ -28,23 +28,37 @@ def main():
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
 
-    # Postranní panel - nastavení
-    st.sidebar.header("⚙️ Nastavení")
+    # Sidebar - Navigace
+    steps = ["📤 Nahrání", "🔗 Mapování", "⚡ Zpracování", "📊 Výsledky"]
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
 
-    # Pracovní doba
+    st.sidebar.title("Navigace")
+    selected_tab = st.sidebar.radio("Krok", steps, index=st.session_state.active_tab, key="step_radio")
+    st.session_state.active_tab = steps.index(selected_tab)
+
+    # Sidebar - Nastavení
+    st.sidebar.header("⚙️ Nastavení")
     st.sidebar.subheader("Pracovní doba")
     work_start = st.sidebar.time_input("Začátek", value=pd.to_datetime("09:00").time())
     work_end = st.sidebar.time_input("Konec", value=pd.to_datetime("17:00").time())
-
-    # Nastavení rozdělování
     st.sidebar.subheader("Rozdělování záznamů")
     max_chunk_minutes = st.sidebar.slider("Max. délka bloku (min)", 5, 120, 15)
     min_words_split = st.sidebar.slider("Min. slov pro rozdělení", 5, 50, 10)
-
-    # AI nastavení
     st.sidebar.subheader("AI generování")
     fill_gaps = st.sidebar.checkbox("Vyplnit prázdná místa", value=True)
     ai_creativity = st.sidebar.slider("Kreativita AI", 0.1, 1.0, 0.7)
+
+    # Sidebar - Ušetřeno
+    st.sidebar.markdown("---")
+    st.sidebar.header("💸 Ušetřeno")
+    hourly_rate = st.sidebar.number_input("Vaše hodinová sazba (Kč)", min_value=0, value=0, step=100)
+    saved_hours = st.sidebar.number_input("Ušetřené hodiny", min_value=0.0, value=0.0, step=0.5, format="%.2f")
+    if hourly_rate > 0 and saved_hours > 0:
+        saved_money = hourly_rate * saved_hours
+        st.sidebar.success(f"Ušetřeno: {saved_money:,.0f} Kč")
+    else:
+        st.sidebar.info("Zadejte sazbu a počet hodin.")
 
     # Funkce pro simulaci AI generování
     def generate_activity_suggestions(gaps: List[Dict], existing_activities: List[str]) -> List[str]:
@@ -131,14 +145,6 @@ def main():
             chunks.append(chunk)
             start_time = chunk_end_time
         return chunks
-
-    steps = ["📤 Nahrání", "🔗 Mapování", "⚡ Zpracování", "📊 Výsledky"]
-    if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = 0
-
-    st.sidebar.title("Navigace")
-    selected_tab = st.sidebar.radio("Krok", steps, index=st.session_state.active_tab, key="step_radio")
-    st.session_state.active_tab = steps.index(selected_tab)
 
     if st.session_state.active_tab == 0:
         st.header("Nahrání souboru")
