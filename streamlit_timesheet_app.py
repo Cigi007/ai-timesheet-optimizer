@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import io
 import re
 from typing import List, Dict, Tuple
+import sys
 
 # Konfigurace stránky
 st.set_page_config(
@@ -202,6 +203,7 @@ if st.session_state.active_tab == 1 and st.session_state.data is not None:
         if st.button("Potvrdit mapování"):
             st.session_state.active_tab = 2
             st.experimental_rerun()
+            sys.exit()
         st.info("Po namapování potvrďte tlačítkem.")
 
 # Výsledky
