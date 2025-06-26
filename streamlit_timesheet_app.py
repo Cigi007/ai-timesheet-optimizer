@@ -172,7 +172,7 @@ def main():
                             st.success("Soubor byl úspěšně nahrán a zvalidován.")
                             st.session_state.active_tab = 1
                             st.experimental_rerun()
-                            return
+                            return True
                 except Exception as e:
                     error_message = f"Chyba při načítání souboru: {str(e)}"
             if error_message:
@@ -202,7 +202,7 @@ def main():
             if st.button("Potvrdit mapování"):
                 st.session_state.active_tab = 2
                 st.experimental_rerun()
-                return
+                return False
             st.info("Po namapování potvrďte tlačítkem.")
 
     # Výsledky
@@ -225,4 +225,6 @@ def main():
                 st.info("Zatím nejsou k dispozici žádné výsledky ke zobrazení.")
 
 if __name__ == "__main__":
-    main()
+    result = main()
+    if result is False:
+        sys.exit()
