@@ -133,10 +133,71 @@ def split_long_entry(entry: Dict, max_minutes: int, min_words: int) -> List[Dict
 # Hlavní obsah
 tab1, tab2, tab3, tab4 = st.tabs(["📤 Nahrání", "🔗 Mapování", "⚡ Zpracování", "📊 Výsledky"])
 
+# Přidám proměnnou pro přepínání tabů
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = 0
+
+def switch_tab(idx):
+    st.session_state.active_tab = idx
+
 with tab1:
     st.header("Nahrání souboru")
+    max_file_size_mb = 10
+    error_message = None
     uploaded_file = st.file_uploader(
         "Vyberte CSV nebo Excel soubor",
         type=['csv', 'xlsx', 'xls'],
-        help="""Podporované formáty:\n- CSV (.csv)\n- Excel (.xlsx, .xls)\n"""
+        help="""Podporované formáty:\n- CSV (.csv)\n- Excel (.xlsx, .xls)\nMaximální velikost souboru: 10 MB"""
     )
+    if uploaded_file is not None:
+        # Validace velikosti
+        uploaded_file.seek(0, 2)  # na konec souboru
+        file_size = uploaded_file.tell()
+        uploaded_file.seek(0)
+        if file_size > max_file_size_mb * 1024 * 1024:
+            error_message = f"Soubor je příliš velký (max {max_file_size_mb} MB)."
+        else:
+            # Validace obsahu
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file)
+                elif uploaded_file.name.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(uploaded_file)
+                else:
+                    error_message = "Nepodporovaný formát souboru."
+                if error_message is None:
+                    if df.shape[0] == 0 or df.shape[1] == 0:
+                        error_message = "Soubor neobsahuje žádná data."
+                    else:
+                        st.session_state.data = df
+                        st.success("Soubor byl úspěšně nahrán a zvalidován.")
+                        switch_tab(1)  # Přepni na Mapování
+            except Exception as e:
+                error_message = f"Chyba při načítání souboru: {str(e)}"
+        if error_message:
+            st.error(error_message)
+
+# Automatické přepnutí na Mapování pokud je aktivní tab 1 a data jsou načtena
+if st.session_state.active_tab == 1 and st.session_state.data is not None:
+    with tab2:
+        st.header("Mapování sloupců")
+        st.write("Zde bude pokračovat logika mapování sloupců.")
+
+# Výsledky
+if st.session_state.active_tab == 3:
+    with tab4:
+        st.header("Výsledky")
+        if st.session_state.get('processed_data') is not None:
+            df = st.session_state.processed_data.copy()
+            # Přidej sloupec Typ řádku
+            def row_type(row):
+                if row.get('is_generated', False):
+                    return 'Dovyplněný'
+                elif row.get('is_split', False):
+                    return 'Rozdělený'
+                else:
+                    return 'Původní'
+            df['Typ řádku'] = df.apply(row_type, axis=1)
+            st.dataframe(df)
+        else:
+            st.info("Zatím nejsou k dispozici žádné výsledky ke zobrazení.")
