@@ -132,14 +132,15 @@ def main():
             start_time = chunk_end_time
         return chunks
 
-    # Hlavní obsah
-    tab1, tab2, tab3, tab4 = st.tabs(["📤 Nahrání", "🔗 Mapování", "⚡ Zpracování", "📊 Výsledky"])
-
-    # Přidám proměnnou pro přepínání tabů
+    steps = ["📤 Nahrání", "🔗 Mapování", "⚡ Zpracování", "📊 Výsledky"]
     if 'active_tab' not in st.session_state:
         st.session_state.active_tab = 0
 
-    with tab1:
+    st.sidebar.title("Navigace")
+    selected_tab = st.sidebar.radio("Krok", steps, index=st.session_state.active_tab, key="step_radio")
+    st.session_state.active_tab = steps.index(selected_tab)
+
+    if st.session_state.active_tab == 0:
         st.header("Nahrání souboru")
         max_file_size_mb = 10
         error_message = None
@@ -171,58 +172,57 @@ def main():
                             st.session_state.data = df
                             st.success("Soubor byl úspěšně nahrán a zvalidován.")
                             st.session_state.active_tab = 1
-                            st.rerun()
+                            st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
                             return True
                 except Exception as e:
                     error_message = f"Chyba při načítání souboru: {str(e)}"
             if error_message:
                 st.error(error_message)
 
-    # Mapování sloupců
     if st.session_state.active_tab == 1 and st.session_state.data is not None:
-        with tab2:
-            st.header("Mapování sloupců")
-            df = st.session_state.data
-            st.write("Namapujte sloupce z nahraného souboru na požadované položky:")
-            mapping_options = [
-                "Nepoužít",
-                "Projekt",
-                "Úkol",
-                "Popisek",
-                "Od kdy",
-                "Do kdy"
-            ]
-            columns = list(df.columns)
-            if 'columns_mapping' not in st.session_state or not st.session_state.columns_mapping:
-                st.session_state.columns_mapping = {col: "Nepoužít" for col in columns}
-            for col in columns:
-                st.session_state.columns_mapping[col] = st.selectbox(
-                    f"{col}", mapping_options, index=mapping_options.index(st.session_state.columns_mapping.get(col, "Nepoužít")), key=f"mapping_{col}"
-                )
-            if st.button("Potvrdit mapování"):
-                st.session_state.active_tab = 2
-                st.rerun()
-                return False
-            st.info("Po namapování potvrďte tlačítkem.")
+        st.header("Mapování sloupců")
+        df = st.session_state.data
+        st.write("Namapujte sloupce z nahraného souboru na požadované položky:")
+        mapping_options = [
+            "Nepoužít",
+            "Projekt",
+            "Úkol",
+            "Popisek",
+            "Od kdy",
+            "Do kdy"
+        ]
+        columns = list(df.columns)
+        if 'columns_mapping' not in st.session_state or not st.session_state.columns_mapping:
+            st.session_state.columns_mapping = {col: "Nepoužít" for col in columns}
+        for col in columns:
+            st.session_state.columns_mapping[col] = st.selectbox(
+                f"{col}", mapping_options, index=mapping_options.index(st.session_state.columns_mapping.get(col, "Nepoužít")), key=f"mapping_{col}"
+            )
+        if st.button("Potvrdit mapování"):
+            st.session_state.active_tab = 2
+            st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
+            return False
+        st.info("Po namapování potvrďte tlačítkem.")
 
-    # Výsledky
+    if st.session_state.active_tab == 2:
+        st.header("Zpracování dat")
+        st.info("Zde bude logika zpracování dat podle mapování.")
+
     if st.session_state.active_tab == 3:
-        with tab4:
-            st.header("Výsledky")
-            if st.session_state.get('processed_data') is not None:
-                df = st.session_state.processed_data.copy()
-                # Přidej sloupec Typ řádku
-                def row_type(row):
-                    if row.get('is_generated', False):
-                        return 'Dovyplněný'
-                    elif row.get('is_split', False):
-                        return 'Rozdělený'
-                    else:
-                        return 'Původní'
-                df['Typ řádku'] = df.apply(row_type, axis=1)
-                st.dataframe(df)
-            else:
-                st.info("Zatím nejsou k dispozici žádné výsledky ke zobrazení.")
+        st.header("Výsledky")
+        if st.session_state.get('processed_data') is not None:
+            df = st.session_state.processed_data.copy()
+            def row_type(row):
+                if row.get('is_generated', False):
+                    return 'Dovyplněný'
+                elif row.get('is_split', False):
+                    return 'Rozdělený'
+                else:
+                    return 'Původní'
+            df['Typ řádku'] = df.apply(row_type, axis=1)
+            st.dataframe(df)
+        else:
+            st.info("Zatím nejsou k dispozici žádné výsledky ke zobrazení.")
 
 if __name__ == "__main__":
     result = main()
