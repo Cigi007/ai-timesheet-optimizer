@@ -199,7 +199,10 @@ if st.session_state.active_tab == 1 and st.session_state.data is not None:
             st.session_state.columns_mapping[col] = st.selectbox(
                 f"{col}", mapping_options, index=mapping_options.index(st.session_state.columns_mapping.get(col, "Nepoužít")), key=f"mapping_{col}"
             )
-        st.info("Po namapování pokračujte na další krok.")
+        if st.button("Potvrdit mapování"):
+            st.session_state.active_tab = 2
+            st.experimental_rerun()
+        st.info("Po namapování potvrďte tlačítkem.")
 
 # Výsledky
 if st.session_state.active_tab == 3:
