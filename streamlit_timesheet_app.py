@@ -183,6 +183,22 @@ def main():
                             error_message = "Soubor neobsahuje žádná data."
                         else:
                             st.session_state.data = df
+                            # --- Automatické mapování sloupců ---
+                            auto_map = {
+                                "Projekt": ["projekt", "project"],
+                                "Úkol": ["úkol", "task"],
+                                "Popisek": ["popis", "popisek", "description", "desc"],
+                                "Od kdy": ["od", "od kdy", "start", "from", "begin"],
+                                "Do kdy": ["do", "do kdy", "end", "to", "finish"]
+                            }
+                            columns_mapping = {col: "Nepoužít" for col in df.columns}
+                            for col in df.columns:
+                                col_lower = col.lower()
+                                for target, variants in auto_map.items():
+                                    if any(variant in col_lower for variant in variants):
+                                        columns_mapping[col] = target
+                                        break
+                            st.session_state.columns_mapping = columns_mapping
                             st.success("Soubor byl úspěšně nahrán a zvalidován.")
                             st.session_state.active_tab = 1
                             st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
