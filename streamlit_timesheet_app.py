@@ -272,19 +272,14 @@ Nastavení:
 - Vyplnit prázdná místa: {'ano' if fill_gaps else 'ne'}
 - Pracovní doba: {work_start.strftime('%H:%M')} - {work_end.strftime('%H:%M')}
 """
-                prompt = (
-                    "Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:
-"
-                    "1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.
-"
-                    "2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.
-"
-                    "3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.
-"
-                    "4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.
-"
-                    f"{settings}\nData:\n" + df.head(10).to_csv(index=False)
-                )
+                prompt = f"""Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:
+1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.
+2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.
+3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.
+4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.
+{settings}
+Data:
+{df.head(10).to_csv(index=False)}"""
                 ai_result = call_openai_gpt(prompt, openai_api_key)
                 # Pokus o převod AI výstupu na DataFrame
                 try:
