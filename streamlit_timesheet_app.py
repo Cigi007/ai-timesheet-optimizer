@@ -7,6 +7,7 @@ import re
 from typing import List, Dict, Tuple
 import sys
 import openai
+import requests
 
 def main():
     # Konfigurace stránky
@@ -38,13 +39,24 @@ def main():
     selected_tab = st.sidebar.radio("Krok", steps, index=st.session_state.active_tab, key="step_radio")
     st.session_state.active_tab = steps.index(selected_tab)
 
-    # Sidebar - OpenAI API klíč
+    # Sidebar - Zdroj AI
     st.sidebar.markdown("---")
-    st.sidebar.header("🔑 OpenAI API klíč")
-    openai_api_key = st.sidebar.text_input("Zadejte svůj OpenAI API klíč", type="password", key="openai_api_key")
-    st.sidebar.markdown('<span style="font-size: 0.85em; color: #888;">'
-                        'Kde najdu API klíč? <a href="https://platform.openai.com/api-keys" target="_blank">Získat klíč zde</a>'
-                        '</span>', unsafe_allow_html=True)
+    st.sidebar.header("🧠 Zdroj AI")
+    ai_source = st.sidebar.radio("Vyberte zdroj AI", ["OpenAI (cloud)", "Ollama (lokální)"])
+    if ai_source == "Ollama (lokální)":
+        st.sidebar.markdown('<span style="font-size: 0.85em; color: #888;">'
+                            'Ollama je open-source AI, kterou si můžete zdarma nainstalovat na svůj počítač. '
+                            'Návod: <a href="https://ollama.com/download" target="_blank">ollama.com/download</a>'
+                            '</span>', unsafe_allow_html=True)
+
+    # Sidebar - OpenAI API klíč (jen pokud je vybrán OpenAI)
+    openai_api_key = None
+    if ai_source == "OpenAI (cloud)":
+        st.sidebar.header("🔑 OpenAI API klíč")
+        openai_api_key = st.sidebar.text_input("Zadejte svůj OpenAI API klíč", type="password", key="openai_api_key")
+        st.sidebar.markdown('<span style="font-size: 0.85em; color: #888;">'
+                            'Kde najdu API klíč? <a href="https://platform.openai.com/api-keys" target="_blank">Získat klíč zde</a>'
+                            '</span>', unsafe_allow_html=True)
 
     # Sidebar - Nastavení
     st.sidebar.header("⚙️ Nastavení")
@@ -177,6 +189,21 @@ def main():
         except Exception as e:
             return f"Chyba při volání OpenAI API: {str(e)}"
 
+    def call_ollama_gpt(prompt, model="llama3"):
+        url = "http://localhost:11434/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False
+        }
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=60)
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            return f"Chyba při volání Ollama API: {str(e)}"
+
     if st.session_state.active_tab == 0:
         st.header("Nahrání souboru")
         max_file_size_mb = 10
@@ -280,7 +307,10 @@ Nastavení:
 {settings}
 Data:
 {df.head(10).to_csv(index=False)}"""
-                ai_result = call_openai_gpt(prompt, openai_api_key)
+                if ai_source == "OpenAI (cloud)":
+                    ai_result = call_openai_gpt(prompt, openai_api_key)
+                else:
+                    ai_result = call_ollama_gpt(prompt, model="llama3")
                 # Pokus o převod AI výstupu na DataFrame
                 try:
                     df_ai = pd.read_csv(io.StringIO(ai_result))
