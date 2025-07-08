@@ -42,6 +42,9 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("🔑 OpenAI API klíč")
     openai_api_key = st.sidebar.text_input("Zadejte svůj OpenAI API klíč", type="password", key="openai_api_key")
+    st.sidebar.markdown('<span style="font-size: 0.85em; color: #888;">'
+                        'Kde najdu API klíč? <a href="https://platform.openai.com/api-keys" target="_blank">Získat klíč zde</a>'
+                        '</span>', unsafe_allow_html=True)
 
     # Sidebar - Nastavení
     st.sidebar.header("⚙️ Nastavení")
@@ -259,11 +262,36 @@ def main():
         if st.session_state.data is not None:
             df = st.session_state.data.copy()
             st.write("Klikněte na tlačítko pro spuštění AI zpracování (doplnění hluchých míst a rozpad dlouhých úkolů):")
-            if st.button("Spustit AI zpracování"):
-                # Ukázkový prompt pro AI (můžeš upravit dle potřeby)
-                prompt = "Navrhni aktivity pro prázdná místa v pracovním výkazu a rozděl dlouhé úkoly na menší části. Data:\n" + df.head(10).to_csv(index=False)
+            if st.button("Spustit AI zpracování", use_container_width=True):
+                # Vylepšený prompt pro AI
+                settings = f"""
+Nastavení:
+- Maximální délka bloku: {max_chunk_minutes} minut
+- Minimální počet slov pro rozdělení: {min_words_split}
+- Ignorovat schůzky: {'ano' if ignore_meetings else 'ne'}
+- Vyplnit prázdná místa: {'ano' if fill_gaps else 'ne'}
+- Pracovní doba: {work_start.strftime('%H:%M')} - {work_end.strftime('%H:%M')}
+"""
+                prompt = (
+                    "Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:
+"
+                    "1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.
+"
+                    "2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.
+"
+                    "3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.
+"
+                    "4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.
+"
+                    f"{settings}\nData:\n" + df.head(10).to_csv(index=False)
+                )
                 ai_result = call_openai_gpt(prompt, openai_api_key)
-                st.session_state.processed_data = df  # Zatím jen původní data, později nahradit výsledkem AI
+                # Pokus o převod AI výstupu na DataFrame
+                try:
+                    df_ai = pd.read_csv(io.StringIO(ai_result))
+                    st.session_state.processed_data = df_ai
+                except Exception:
+                    st.session_state.processed_data = df
                 st.session_state.ai_result = ai_result
                 st.success("AI zpracování dokončeno. Výsledek najdete v záložce Výsledky.")
                 st.session_state.active_tab = 3
@@ -286,7 +314,24 @@ def main():
                 else:
                     return 'Původní'
             df['Typ řádku'] = df.apply(row_type, axis=1)
-            st.dataframe(df)
+            # Podbarvení nových řádků
+            def highlight_rows(row):
+                if row['Typ řádku'] == 'Dovyplněný':
+                    return ['background-color: #fff3cd'] * len(row)
+                elif row['Typ řádku'] == 'Rozdělený':
+                    return ['background-color: #cce5ff'] * len(row)
+                else:
+                    return [''] * len(row)
+            st.dataframe(df.style.apply(highlight_rows, axis=1))
+            # Tlačítko pro stažení CSV
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Stáhnout CSV",
+                data=csv,
+                file_name="optimalizovany_vykaz.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
         else:
             st.info("Zatím nejsou k dispozici žádné výsledky ke zobrazení.")
 
