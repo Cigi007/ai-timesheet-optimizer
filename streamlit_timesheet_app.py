@@ -44,6 +44,9 @@ def main():
     work_end = st.sidebar.time_input("Konec", value=pd.to_datetime("17:00").time())
     st.sidebar.subheader("Rozdělování záznamů")
     max_chunk_minutes = st.sidebar.slider("Max. délka bloku (min)", 5, 120, 15)
+    ignore_meetings = False
+    if max_chunk_minutes == 15:
+        ignore_meetings = st.sidebar.checkbox("Automaticky ignoruj schůzky", value=True)
     min_words_split = st.sidebar.slider("Min. slov pro rozdělení", 5, 50, 10)
     st.sidebar.subheader("AI generování")
     fill_gaps = st.sidebar.checkbox("Vyplnit prázdná místa", value=True)
@@ -112,11 +115,15 @@ def main():
         except:
             return 0
 
-    def split_long_entry(entry: Dict, max_minutes: int, min_words: int) -> List[Dict]:
-        """Rozdělí dlouhý záznam na menší části"""
+    def split_long_entry(entry: Dict, max_minutes: int, min_words: int, ignore_meetings: bool = False) -> List[Dict]:
+        """Rozdělí dlouhý záznam na menší části, případně ignoruje schůzky"""
         description = str(entry.get('description', ''))
         words = description.split()
+        # Pravidlo: blok musí mít více než min_words slov
         if len(words) < min_words:
+            return [entry]
+        # Pokud je aktivní ignorování schůzek a popis obsahuje 'schůzka', nerozděluj
+        if ignore_meetings and 'schůzka' in description.lower():
             return [entry]
         duration = parse_time_duration(entry.get('time_start', ''), entry.get('time_end', ''))
         if duration <= max_minutes:
