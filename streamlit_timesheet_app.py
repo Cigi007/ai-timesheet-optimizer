@@ -6,6 +6,7 @@ import io
 import re
 from typing import List, Dict, Tuple
 import sys
+import openai
 
 def main():
     # Konfigurace stránky
@@ -36,6 +37,11 @@ def main():
     st.sidebar.title("Navigace")
     selected_tab = st.sidebar.radio("Krok", steps, index=st.session_state.active_tab, key="step_radio")
     st.session_state.active_tab = steps.index(selected_tab)
+
+    # Sidebar - OpenAI API klíč
+    st.sidebar.markdown("---")
+    st.sidebar.header("🔑 OpenAI API klíč")
+    openai_api_key = st.sidebar.text_input("Zadejte svůj OpenAI API klíč", type="password", key="openai_api_key")
 
     # Sidebar - Nastavení
     st.sidebar.header("⚙️ Nastavení")
@@ -153,6 +159,21 @@ def main():
             start_time = chunk_end_time
         return chunks
 
+    def call_openai_gpt(prompt, api_key):
+        if not api_key:
+            return "Nebyl zadán OpenAI API klíč."
+        try:
+            client = openai.OpenAI(api_key=api_key)
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=256,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"Chyba při volání OpenAI API: {str(e)}"
+
     if st.session_state.active_tab == 0:
         st.header("Nahrání souboru")
         max_file_size_mb = 10
@@ -235,7 +256,23 @@ def main():
 
     if st.session_state.active_tab == 2:
         st.header("Zpracování dat")
-        st.info("Zde bude logika zpracování dat podle mapování.")
+        if st.session_state.data is not None:
+            df = st.session_state.data.copy()
+            st.write("Klikněte na tlačítko pro spuštění AI zpracování (doplnění hluchých míst a rozpad dlouhých úkolů):")
+            if st.button("Spustit AI zpracování"):
+                # Ukázkový prompt pro AI (můžeš upravit dle potřeby)
+                prompt = "Navrhni aktivity pro prázdná místa v pracovním výkazu a rozděl dlouhé úkoly na menší části. Data:\n" + df.head(10).to_csv(index=False)
+                ai_result = call_openai_gpt(prompt, openai_api_key)
+                st.session_state.processed_data = df  # Zatím jen původní data, později nahradit výsledkem AI
+                st.session_state.ai_result = ai_result
+                st.success("AI zpracování dokončeno. Výsledek najdete v záložce Výsledky.")
+                st.session_state.active_tab = 3
+                st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
+                return False
+            if 'ai_result' in st.session_state:
+                st.info(f"AI výstup (náhled):\n{st.session_state.ai_result}")
+        else:
+            st.warning("Nejsou k dispozici žádná data ke zpracování.")
 
     if st.session_state.active_tab == 3:
         st.header("Výsledky")
