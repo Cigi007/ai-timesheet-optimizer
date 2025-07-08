@@ -299,25 +299,27 @@ Nastavení:
 - Vyplnit prázdná místa: {'ano' if fill_gaps else 'ne'}
 - Pracovní doba: {work_start.strftime('%H:%M')} - {work_end.strftime('%H:%M')}
 """
-                prompt = f"""Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:
-1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.
-2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.
-3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.
-4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.
-{settings}
-Data:
-{df.head(10).to_csv(index=False)}"""
-                if ai_source == "OpenAI (cloud)":
-                    ai_result = call_openai_gpt(prompt, openai_api_key)
-                else:
-                    ai_result = call_ollama_gpt(prompt, model="llama3")
-                # Pokus o převod AI výstupu na DataFrame
+                chunk_size = 10
+                n_rows = len(df)
+                n_chunks = (n_rows + chunk_size - 1) // chunk_size
+                progress = st.progress(0, text="Probíhá optimalizace dat pomocí AI...")
+                ai_results = []
+                for i in range(n_chunks):
+                    chunk_df = df.iloc[i*chunk_size:(i+1)*chunk_size]
+                    prompt = f"""Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:\n1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.\n2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.\n3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.\n4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.\n{settings}\nData:\n{chunk_df.to_csv(index=False)}"""
+                    if ai_source == "OpenAI (cloud)":
+                        ai_result = call_openai_gpt(prompt, openai_api_key)
+                    else:
+                        ai_result = call_ollama_gpt(prompt, model="llama3")
+                    ai_results.append(ai_result)
+                    progress.progress((i+1)/n_chunks, text=f"Optimalizováno {min((i+1)*chunk_size, n_rows)}/{n_rows} řádků...")
+                # Pokus o spojení výsledků
                 try:
-                    df_ai = pd.read_csv(io.StringIO(ai_result))
+                    df_ai = pd.concat([pd.read_csv(io.StringIO(res)) for res in ai_results], ignore_index=True)
                     st.session_state.processed_data = df_ai
                 except Exception:
                     st.session_state.processed_data = df
-                st.session_state.ai_result = ai_result
+                st.session_state.ai_result = "\n---\n".join(ai_results)
                 st.success("AI zpracování dokončeno. Výsledek najdete v záložce Výsledky.")
                 st.session_state.active_tab = 3
                 st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
