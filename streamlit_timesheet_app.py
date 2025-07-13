@@ -47,7 +47,7 @@ def main():
     if ai_source == "Ollama (lokální)":
         ollama_model = st.sidebar.selectbox(
             "Ollama model",
-            ["llama3", "mistral", "gemma", "phi"],
+            ["llama3", "mistral", "gemma", "phi", "deepseek"],
             index=0,
             help="Pokud model nemáte, Ollama ho automaticky stáhne."
         )
