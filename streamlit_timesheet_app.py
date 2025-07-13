@@ -313,7 +313,16 @@ Nastavení:
                 ai_results = []
                 for i in range(n_chunks):
                     chunk_df = df.iloc[i*chunk_size:(i+1)*chunk_size]
-                    prompt = f"""Jsi asistent pro optimalizaci timesheetů. Pro každý záznam:\n1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.\n2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.\n3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.\n4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.\n{settings}\nData:\n{chunk_df.to_csv(index=False)}"""
+                    # Zjisti časový rozsah chunku
+                    time_cols = [col for col in chunk_df.columns if 'od' in col.lower() or 'start' in col.lower() or 'do' in col.lower() or 'end' in col.lower()]
+                    min_time, max_time = None, None
+                    if time_cols:
+                        try:
+                            min_time = pd.to_datetime(chunk_df[time_cols[0]].min())
+                            max_time = pd.to_datetime(chunk_df[time_cols[-1]].max())
+                        except Exception:
+                            min_time, max_time = None, None
+                    prompt = f"""Jsi asistent pro optimalizaci timesheetů. Pracuj pouze s časovým rozsahem, který je v nahraných datech – nikdy negeneruj záznamy mimo tento rozsah (od {min_time} do {max_time}).\n1. Pokud je mezi dvěma záznamy mezera (prázdné místo v čase), navrhni vhodnou aktivitu a označ ji jako is_generated=True.\n2. Pokud má popis více než {min_words_split} slov a trvá déle než {max_chunk_minutes} minut, rozděl jej na menší bloky (každý max {max_chunk_minutes} minut) a označ nové bloky is_split=True.\n3. Pokud je popis schůzka a je nastaveno ignorovat schůzky, nerozděluj.\n4. Výstup vrať jako CSV se stejnými sloupci jako vstup + sloupce is_generated, is_split.\n{settings}\nData:\n{chunk_df.to_csv(index=False)}"""
                     if ai_source == "OpenAI (cloud)":
                         ai_result = call_openai_gpt(prompt, openai_api_key)
                     else:
@@ -323,6 +332,13 @@ Nastavení:
                 # Pokus o spojení výsledků
                 try:
                     df_ai = pd.concat([pd.read_csv(io.StringIO(res)) for res in ai_results], ignore_index=True)
+                    # Kontrola: odstraň řádky mimo časový rozsah původních dat
+                    if time_cols and min_time and max_time:
+                        for col in time_cols:
+                            try:
+                                df_ai = df_ai[(pd.to_datetime(df_ai[col]) >= min_time) & (pd.to_datetime(df_ai[col]) <= max_time)]
+                            except Exception:
+                                pass
                     st.session_state.processed_data = df_ai
                 except Exception:
                     st.session_state.processed_data = df
