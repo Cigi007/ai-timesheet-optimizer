@@ -43,7 +43,14 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("🧠 Zdroj AI")
     ai_source = st.sidebar.radio("Vyberte zdroj AI", ["OpenAI (cloud)", "Ollama (lokální)"])
+    ollama_model = "llama3"
     if ai_source == "Ollama (lokální)":
+        ollama_model = st.sidebar.selectbox(
+            "Ollama model",
+            ["llama3", "mistral", "gemma", "phi"],
+            index=0,
+            help="Pokud model nemáte, Ollama ho automaticky stáhne."
+        )
         st.sidebar.markdown('<span style="font-size: 0.85em; color: #888;">'
                             'Ollama je open-source AI, kterou si můžete zdarma nainstalovat na svůj počítač. '
                             'Návod: <a href="https://ollama.com/download" target="_blank">ollama.com/download</a>'
@@ -310,7 +317,7 @@ Nastavení:
                     if ai_source == "OpenAI (cloud)":
                         ai_result = call_openai_gpt(prompt, openai_api_key)
                     else:
-                        ai_result = call_ollama_gpt(prompt, model="llama3")
+                        ai_result = call_ollama_gpt(prompt, model=ollama_model)
                     ai_results.append(ai_result)
                     progress.progress((i+1)/n_chunks, text=f"Optimalizováno {min((i+1)*chunk_size, n_rows)}/{n_rows} řádků...")
                 # Pokus o spojení výsledků
